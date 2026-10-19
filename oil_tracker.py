@@ -1,11 +1,31 @@
+import os
 import time
 from datetime import datetime
 import sqlite3
+import json
 import requests
 from bs4 import BeautifulSoup
 
 URL = "https://webgia.com/gia-xang-dau/petrolimex/"
 DB_NAME = "oil_prices.db"
+JSON_NAME = "prices.json"
+
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+
+def send_telegram_message(message):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return
+    telegram_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+    try:
+        requests.post(telegram_url, json=payload, timeout=10)
+    except Exception as e:
+        print(f"❌ Lỗi Telegram: {e}")
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -28,28 +48,23 @@ def fetch_fuel_prices():
     try:
         response = requests.get(URL, headers=headers, timeout=10)
         if response.status_code != 200:
-            print("⚠️ Không thể kết nối tới trang web lấy giá.")
             return None
-
         soup = BeautifulSoup(response.text, 'html.parser')
         table = soup.find('table')
         if not table:
-            print("⚠️ Không tìm thấy bảng dữ liệu trên trang.")
             return None
 
         prices_data = {}
         rows = table.find_all('tr')
-        
         for row in rows[1:]:
             cols = row.find_all(['th', 'td'])
             if len(cols) >= 2:
                 product_name = cols[0].text.strip()
                 price_vung1 = cols[1].text.strip()
                 prices_data[product_name] = price_vung1
-
         return prices_data
     except Exception as e:
-        print(f"❌ Lỗi khi cào dữ liệu: {e}")
+        print(f"❌ Lỗi cào dữ liệu: {e}")
         return None
 
 def clean_price_to_number(price_str):
@@ -70,7 +85,8 @@ def get_last_saved_prices():
     conn.close()
     return {row[0]: row[1] for row in rows}
 
-def save_to_db(current_time, prices_data):
+def save_to_db_and_json(current_time, prices_data):
+    # Lưu vào SQLite
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     for product, price in prices_data.items():
@@ -81,38 +97,43 @@ def save_to_db(current_time, prices_data):
     conn.commit()
     conn.close()
 
+    # Xuất ra file prices.json cho trang web đọc
+    json_data = {
+        "update_time": current_time,
+        "prices": prices_data
+    }
+    with open(JSON_NAME, "w", encoding="utf-8") as f:
+        json.dump(json_data, f, ensure_ascii=False, indent=4)
+
 def monitor_oil_prices():
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"\n==============================================")
-    print(f"🕒 THỜI GIAN KIỂM TRA: {current_time}")
-    print(f"==============================================")
-    
     current_prices = fetch_fuel_prices()
     if not current_prices:
         return
 
     old_prices = get_last_saved_prices()
+    report_lines = [f"⛽ *CẬP NHẬT GIÁ XĂNG DẦU* ⛽\n🕒 _{current_time}_\n"]
 
     for product, price_str in current_prices.items():
-        print(f"📌 {product}: {price_str}")
+        line = f"• *{product}*: `{price_str}`"
         if product in old_prices:
             old_price_str = old_prices[product]
             old_val = clean_price_to_number(old_price_str)
             new_val = clean_price_to_number(price_str)
-            
             if old_val > 0 and new_val > 0:
                 diff = new_val - old_val
                 if diff > 0:
-                    print(f"   📈 TĂNG: +{diff:,} VNĐ")
+                    line += f" (📈 `+{diff:,} VNĐ`)"
                 elif diff < 0:
-                    print(f"   📉 GIẢM: {diff:,} VNĐ")
+                    line += f" (📉 `{diff:,} VNĐ`)"
                 else:
-                    print(f"   ➖ GIỮ NGUYÊN: Không đổi.")
+                    line += " (➖ Không đổi)"
         else:
-            print(f"   🆕 Ghi nhận lần đầu tiên vào hệ thống.")
+            line += " (🆕 Mới cập nhật)"
+        report_lines.append(line)
 
-    save_to_db(current_time, current_prices)
-    print(f"💾 Đã lưu dữ liệu vào cơ sở dữ liệu SQLite thành công.")
+    save_to_db_and_json(current_time, current_prices)
+    send_telegram_message("\n".join(report_lines))
 
 if __name__ == "__main__":
     init_db()
