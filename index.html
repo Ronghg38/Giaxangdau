@@ -3,199 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vòng Quay May Mắn - Tùy Chỉnh Tỉ Lệ</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Mạc Trượt Nổ Hũ - Admin Quản Lý Tỉ Lệ & Điểm</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .wheel-container {
-            position: relative;
-            width: 320px;
-            height: 320px;
+        .mahjong-tile {
+            transition: all 0.2s ease;
         }
-        #wheel {
-            transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
-        }
-        .pointer {
-            position: absolute;
-            top: -15px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 15px solid transparent;
-            border-right: 15px solid transparent;
-            border-top: 30px solid #ef4444;
-            z-index: 10;
+        .mahjong-tile:hover {
+            transform: translateY(-3px);
         }
     </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+<body class="bg-slate-950 text-white min-h-screen flex flex-col items-center justify-center p-4">
 
-    <div class="max-w-md w-full bg-gray-800 rounded-2xl shadow-2xl p-6 text-center relative">
-        <h1 class="text-2xl font-bold mb-4 text-yellow-400">Vòng Quay Phát Đạt</h1>
+    <!-- Khung Game Chính -->
+    <div class="max-w-md w-full bg-slate-900 border border-amber-500/40 rounded-2xl shadow-2xl p-5 relative">
+        <h1 class="text-xl font-bold text-amber-400 text-center mb-3">🀄 MẠC TRƯỢT NỔ HŨ 🀄</h1>
 
-        <!-- Vòng quay -->
-        <div class="flex justify-center my-6">
-            <div class="wheel-container">
-                <div class="pointer"></div>
-                <div id="wheel" class="w-full h-full rounded-full border-4 border-yellow-400 relative overflow-hidden flex items-center justify-center bg-gray-700">
-                    <canvas id="wheelCanvas" width="320" height="320"></canvas>
-                </div>
+        <!-- Thông tin người chơi -->
+        <div id="userSection" class="hidden bg-slate-800 p-3 rounded-xl mb-4 flex justify-between items-center border border-slate-700">
+            <div>
+                <p class="text-xs text-slate-400">Tài khoản: <span id="currentUsername" class="text-white font-bold"></span></p>
+                <p class="text-sm text-amber-400 font-bold mt-0.5">Số dư: <span id="userBalance">0</span> điểm</p>
+            </div>
+            <button onclick="logout()" class="bg-red-600 hover:bg-red-700 text-xs px-3 py-1.5 rounded-lg text-white font-semibold">Đăng xuất</button>
+        </div>
+
+        <!-- Form Đăng nhập -->
+        <div id="loginSection" class="mb-4">
+            <h3 class="text-sm font-semibold text-slate-300 mb-2">Nhập tên để tham gia trò chơi</h3>
+            <div class="flex space-x-2">
+                <input type="text" id="loginUsername" placeholder="Tên tài khoản..." class="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-amber-500">
+                <button onclick="loginUser()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm">Vào chơi</button>
             </div>
         </div>
 
-        <!-- Nút Quay cho người chơi -->
-        <button id="spinBtn" onclick="spinWheel()" class="w-full bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-gray-900 font-bold py-3 px-6 rounded-xl shadow-lg transition transform active:scale-95 text-lg">
-            QUAY NGAY
-        </button>
+        <!-- Màn hình chơi -->
+        <div id="gameSection" class="hidden">
+            <div class="bg-slate-950 border-2 border-amber-500/50 rounded-xl p-4 mb-4 grid grid-cols-3 gap-3 text-center">
+                <div class="bg-slate-800 border border-slate-700 rounded-lg py-4 text-4xl mahjong-tile" id="slot1">🀄</div>
+                <div class="bg-slate-800 border border-slate-700 rounded-lg py-4 text-4xl mahjong-tile" id="slot2">🀇</div>
+                <div class="bg-slate-800 border border-slate-700 rounded-lg py-4 text-4xl mahjong-tile" id="slot3">🀏</div>
+            </div>
 
-        <div id="result" class="mt-4 text-lg font-semibold text-green-400 h-8"></div>
+            <div id="gameMessage" class="text-sm text-center text-emerald-400 h-6 font-semibold mb-3">Nhấn nút quay để bắt đầu!</div>
 
-        <!-- Nút mở Admin Panel -->
-        <div class="mt-8 border-t border-gray-700 pt-4 flex justify-between items-center">
-            <span class="text-xs text-gray-400">Khu vực dành cho chủ sở hữu</span>
-            <button onclick="openAdminModal()" class="bg-gray-700 hover:bg-gray-600 text-xs text-gray-300 py-1.5 px-3 rounded-lg border border-gray-600">
-                ⚙️ Đăng nhập Admin
+            <button id="spinBtn" onclick="playSlot()" class="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-slate-950 font-bold py-3 px-6 rounded-xl shadow-lg transition transform active:scale-95 text-lg">
+                QUAY NGAY (-10 điểm)
+            </button>
+        </div>
+
+        <!-- Khu vực Admin -->
+        <div class="mt-6 border-t border-slate-800 pt-3 flex justify-between items-center">
+            <span class="text-xs text-slate-500">Quản trị viên hệ thống</span>
+            <button onclick="openAdminModal()" class="bg-slate-800 hover:bg-slate-700 text-xs text-amber-400 py-1.5 px-3 rounded-lg border border-slate-700 font-semibold">
+                ⚙️ Cài Đặt Admin
             </button>
         </div>
     </div>
 
     <!-- Modal Đăng nhập Admin -->
     <div id="adminLoginModal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-gray-800 rounded-xl p-6 max-w-xs w-full border border-gray-700">
-            <h3 class="text-lg font-bold mb-3 text-yellow-400">Mật khẩu Quản Trị</h3>
-            <input type="password" id="adminPassword" placeholder="Nhập mật khẩu..." class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-white mb-4 focus:outline-none focus:border-yellow-500">
+        <div class="bg-slate-900 rounded-xl p-6 max-w-xs w-full border border-slate-700">
+            <h3 class="text-lg font-bold mb-3 text-amber-400">Mật khẩu Admin</h3>
+            <input type="password" id="adminPassword" placeholder="Nhập mật khẩu..." class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white mb-4 focus:outline-none focus:border-amber-500 text-sm">
             <div class="flex space-x-2">
-                <button onclick="checkAdminPassword()" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 rounded-lg">Xác nhận</button>
-                <button onclick="closeModal('adminLoginModal')" class="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 py-2 rounded-lg">Hủy</button>
+                <button onclick="checkAdminPassword()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 rounded-lg text-sm">Xác nhận</button>
+                <button onclick="closeModal('adminLoginModal')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg text-sm">Hủy</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal Bảng Điều Khiển Admin (Tùy chỉnh phần thưởng & Tỉ lệ) -->
+    <!-- Modal Bảng Quản Lý Admin (Cấp điểm & Chỉnh tỉ lệ) -->
     <div id="adminPanelModal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-gray-800 rounded-xl p-6 max-w-lg w-full border border-gray-700 max-h-[90vh] overflow-y-auto">
+        <div class="bg-slate-900 rounded-xl p-6 max-w-md w-full border border-slate-700 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-yellow-400">Cài Đặt Vòng Quay & Tỉ Lệ</h3>
-                <button onclick="closeModal('adminPanelModal')" class="text-gray-400 hover:text-white font-bold text-xl">&times;</button>
+                <h3 class="text-xl font-bold text-amber-400">Bảng Điều Khiển Admin</h3>
+                <button onclick="closeModal('adminPanelModal')" class="text-slate-400 hover:text-white font-bold text-xl">&times;</button>
             </div>
             
-            <p class="text-xs text-gray-300 mb-3">Trọng số (Weight) càng cao thì xác suất trúng ô đó càng lớn. (Ví dụ: Trọng số 50 dễ trúng gấp đôi trọng số 25).</p>
-            
-            <div id="prizeInputs" class="space-y-3 mb-6">
-                <!-- Danh sách sinh bằng JS -->
+            <!-- Phần cài đặt tỉ lệ -->
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 mb-4">
+                <h4 class="text-sm font-bold text-amber-400 mb-2">📊 Cài Đặt Tỉ Lệ Thắng/Thua</h4>
+                <div class="flex items-center justify-between text-xs text-slate-300 mb-2">
+                    <span>Tỉ lệ Nổ Hũ lớn (3 hình giống nhau):</span>
+                    <input type="number" id="winRateInput" min="0" max="100" class="w-16 bg-slate-800 border border-slate-700 rounded p-1 text-center text-amber-400 font-bold" value="20"> %
+                </div>
+                <button onclick="saveGameConfig()" class="w-full bg-amber-600 hover:bg-amber-700 text-slate-950 font-bold py-1.5 rounded text-xs">Lưu tỉ lệ</button>
             </div>
 
-            <div class="flex space-x-2 mb-4">
-                <button onclick="addPrizeRow()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2 rounded-lg">+ Thêm Ô</button>
+            <!-- Phần quản lý người chơi -->
+            <p class="text-xs text-slate-400 mb-2">Quản lý tài khoản và cấp điểm:</p>
+            <div id="userListContainer" class="space-y-3 mb-4">
+                <!-- Danh sách tài khoản hiển thị ở đây -->
             </div>
 
-            <div class="flex space-x-2">
-                <button onclick="savePrizes()" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg">Lưu cấu hình</button>
-                <button onclick="closeModal('adminPanelModal')" class="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 py-2.5 rounded-lg">Đóng</button>
-            </div>
+            <button onclick="closeModal('adminPanelModal')" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 rounded-lg font-bold text-sm">Đóng</button>
         </div>
     </div>
 
     <script>
-        // Mật khẩu admin (Bạn có thể sửa lại tùy ý)
-        const ADMIN_SECRET = "admin123456";
+        const ADMIN_SECRET = "admin123456"; // Mật khẩu admin của bạn
+        let currentUser = localStorage.getItem('mahjong_current_user') || null;
+        let accounts = JSON.parse(localStorage.getItem('mahjong_accounts')) || [];
+        
+        // Tỉ lệ nổ hũ mặc định (ví dụ: 20%)
+        let winRate = Number(localStorage.getItem('mahjong_win_rate')) || 20;
 
-        // Danh sách phần thưởng kèm theo "weight" (Trọng số tỉ lệ trúng)
-        let prizes = JSON.parse(localStorage.getItem('wheel_prizes_weighted')) || [
-            { text: "Trúng Lớn", weight: 10, color: "#f59e0b" },
-            { text: "Trượt rồi", weight: 50, color: "#374151" },
-            { text: "Thêm Lượt", weight: 20, color: "#10b981" },
-            { text: "Trượt nhẹ", weight: 40, color: "#ef4444" },
-            { text: "Quà Nhỏ", weight: 30, color: "#3b82f6" }
-        ];
+        const tiles = ["🀄", "🀇", "🀈", "🀉", "🀊", "🀋", "🀌", "🀍", "🀎", "🀏"];
 
-        let startAngle = 0;
-        let isSpinning = false;
-        const canvas = document.getElementById("wheelCanvas");
-        const ctx = canvas.getContext("2d");
-
-        function drawWheel() {
-            const numSegments = prizes.length;
-            const arcSize = (2 * Math.PI) / numSegments;
-            ctx.clearRect(0, 0, 320, 320);
-
-            let currentAngle = 0;
-            for (let i = 0; i < numSegments; i++) {
-                ctx.beginPath();
-                ctx.fillStyle = prizes[i].color || getRandomColor(i);
-                ctx.moveTo(160, 160);
-                ctx.arc(160, 160, 150, currentAngle, currentAngle + arcSize);
-                ctx.lineTo(160, 160);
-                ctx.fill();
-                ctx.save();
-
-                // Vẽ chữ
-                ctx.translate(160, 160);
-                ctx.rotate(currentAngle + arcSize / 2);
-                ctx.textAlign = "right";
-                ctx.fillStyle = "#ffffff";
-                ctx.font = "bold 13px sans-serif";
-                ctx.fillText(prizes[i].text, 130, 5);
-                ctx.restore();
-
-                currentAngle += arcSize;
+        function initApp() {
+            if (currentUser) {
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('userSection').classList.remove('hidden');
+                document.getElementById('gameSection').classList.remove('hidden');
+                document.getElementById('currentUsername').innerText = currentUser;
+                updateBalanceDisplay();
+            } else {
+                document.getElementById('loginSection').classList.remove('hidden');
+                document.getElementById('userSection').classList.add('hidden');
+                document.getElementById('gameSection').classList.add('hidden');
             }
         }
 
-        function getRandomColor(index) {
-            const colors = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ef4444", "#ec4899", "#14b8a6", "#f97316"];
-            return colors[index % colors.length];
-        }
-
-        // Thuật toán chọn phần thưởng dựa trên Trọng số (Tỉ lệ)
-        function getWeightedRandomIndex() {
-            let totalWeight = prizes.reduce((sum, p) => sum + Number(p.weight), 0);
-            let randomNum = Math.random() * totalWeight;
-            
-            let currentSum = 0;
-            for (let i = 0; i < prizes.length; i++) {
-                currentSum += Number(prizes[i].weight);
-                if (randomNum <= currentSum) {
-                    return i;
-                }
+        function loginUser() {
+            const username = document.getElementById('loginUsername').value.trim();
+            if (!username) {
+                alert("Vui lòng nhập tên tài khoản!");
+                return;
             }
-            return 0;
+
+            let acc = accounts.find(a => a.username === username);
+            if (!acc) {
+                acc = { username: username, balance: 100 };
+                accounts.push(acc);
+                saveAccounts();
+            }
+
+            currentUser = username;
+            localStorage.setItem('mahjong_current_user', currentUser);
+            document.getElementById('loginUsername').value = '';
+            initApp();
         }
 
-        function spinWheel() {
-            if (isSpinning) return;
-            isSpinning = true;
-            document.getElementById("result").innerText = "";
-            document.getElementById("spinBtn").disabled = true;
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('mahjong_current_user');
+            initApp();
+        }
 
-            const numSegments = prizes.length;
-            const winningIndex = getWeightedRandomIndex();
+        function getAccount(username) {
+            return accounts.find(a => a.username === username);
+        }
 
-            // Tính toán góc quay để vòng quay dừng chính xác tại ô đã chọn theo trọng số
-            const degreesPerSegment = 360 / numSegments;
-            // Góc trung tâm của ô trúng tính từ đỉnh (0 độ)
-            const targetAngleFromTop = 360 - (winningIndex * degreesPerSegment + degreesPerSegment / 2);
-            
-            // Thêm số vòng quay nguyên (ít nhất 5 vòng = 1800 độ) cộng với góc lệch cần đến
-            const extraSpins = 360 * 5;
-            const currentMod = startAngle % 360;
-            let targetAdd = extraSpins + targetAngleFromTop - currentMod;
-            if (targetAdd < extraSpins) targetAdd += 360;
+        function updateBalanceDisplay() {
+            const acc = getAccount(currentUser);
+            if (acc) {
+                document.getElementById('userBalance').innerText = acc.balance;
+            }
+        }
 
-            startAngle += targetAdd;
+        function saveAccounts() {
+            localStorage.setItem('mahjong_accounts', JSON.stringify(accounts));
+        }
 
-            const wheel = document.getElementById("wheel");
-            wheel.style.transform = `rotate(${startAngle}deg)`;
+        function playSlot() {
+            let acc = getAccount(currentUser);
+            const betCost = 10;
+
+            if (acc.balance < betCost) {
+                alert("Số dư của bạn đã hết! Vui lòng liên hệ Admin để nạp thêm điểm.");
+                return;
+            }
+
+            acc.balance -= betCost;
+            saveAccounts();
+            updateBalanceDisplay();
+
+            document.getElementById("gameMessage").innerText = "Đang quay...";
+            document.getElementById("slot1").innerText = "🔄";
+            document.getElementById("slot2").innerText = "🔄";
+            document.getElementById("slot3").innerText = "🔄";
 
             setTimeout(() => {
-                isSpinning = false;
-                document.getElementById("spinBtn").disabled = false;
-                document.getElementById("result").innerText = `Kết quả: ${prizes[winningIndex].text}`;
-            }, 4000);
+                let randomRoll = Math.random() * 100; // Quay số từ 0 đến 100
+                let t1, t2, t3;
+
+                // Nếu số quay nhỏ hơn tỉ lệ winRate cài đặt -> Cho trúng hũ lớn
+                if (randomRoll < winRate) {
+                    let winningTile = tiles[Math.floor(Math.random() * tiles.length)];
+                    t1 = winningTile;
+                    t2 = winningTile;
+                    t3 = winningTile;
+                } else {
+                    // Ngược lại ra kết quả trượt hoặc trúng nhỏ
+                    t1 = tiles[Math.floor(Math.random() * tiles.length)];
+                    t2 = tiles[Math.floor(Math.random() * tiles.length)];
+                    t3 = tiles[Math.floor(Math.random() * tiles.length)];
+                    while(t1 === t2 && t2 === t3) { // Tránh trùng tình cờ
+                        t3 = tiles[Math.floor(Math.random() * tiles.length)];
+                    }
+                }
+
+                document.getElementById("slot1").innerText = t1;
+                document.getElementById("slot2").innerText = t2;
+                document.getElementById("slot3").innerText = t3;
+
+                if (t1 === t2 && t2 === t3) {
+                    const reward = 100;
+                    acc.balance += reward;
+                    document.getElementById("gameMessage").innerText = `🎉 NỔ HŨ THÀNH CÔNG! Trúng +${reward} điểm!`;
+                } else if (t1 === t2 || t2 === t3 || t1 === t3) {
+                    const reward = 20;
+                    acc.balance += reward;
+                    document.getElementById("gameMessage").innerText = `✨ Thắng nhỏ! Nhận +${reward} điểm!`;
+                } else {
+                    document.getElementById("gameMessage").innerText = "❌ Trượt rồi, chúc bạn may mắn lần sau!";
+                }
+
+                saveAccounts();
+                updateBalanceDisplay();
+            }, 600);
         }
 
-        // Admin functions
+        // Admin Functions
         function openAdminModal() {
             document.getElementById("adminLoginModal").classList.remove("hidden");
         }
@@ -209,70 +240,60 @@
             if (pass === ADMIN_SECRET) {
                 closeModal('adminLoginModal');
                 document.getElementById("adminPassword").value = "";
-                openAdminPanel();
+                document.getElementById("winRateInput").value = winRate;
+                renderAdminUserList();
+                document.getElementById("adminPanelModal").classList.remove("hidden");
             } else {
-                alert("Mật khẩu không đúng!");
+                alert("Mật khẩu Admin không đúng!");
             }
         }
 
-        function openAdminPanel() {
-            renderPrizeInputs();
-            document.getElementById("adminPanelModal").classList.remove("hidden");
-        }
-
-        function renderPrizeInputs() {
-            const container = document.getElementById("prizeInputs");
-            container.innerHTML = "";
-            prizes.forEach((prize, index) => {
-                container.innerHTML += `
-                    <div class="flex space-x-2 items-center bg-gray-900 p-2 rounded-lg border border-gray-700">
-                        <input type="text" value="${prize.text}" data-index="${index}" placeholder="Tên ô" class="prize-name flex-1 bg-gray-800 border border-gray-700 rounded p-1.5 text-sm text-white">
-                        <input type="number" value="${prize.weight}" data-index="${index}" placeholder="Tỉ lệ" min="1" class="prize-weight w-16 bg-gray-800 border border-gray-700 rounded p-1.5 text-sm text-white text-center" title="Trọng số tỉ lệ">
-                        <input type="color" value="${prize.color || '#f59e0b'}" data-index="${index}" class="prize-color w-8 h-8 rounded cursor-pointer bg-transparent">
-                        <button onclick="removePrizeRow(${index})" class="text-red-400 hover:text-red-500 font-bold px-2 text-lg">×</button>
-                    </div>
-                `;
-            });
-        }
-
-        function addPrizeRow() {
-            prizes.push({ text: "Giải mới", weight: 10, color: "#14b8a6" });
-            renderPrizeInputs();
-        }
-
-        function removePrizeRow(index) {
-            if (prizes.length <= 2) {
-                alert("Vòng quay phải có ít nhất 2 ô!");
+        function saveGameConfig() {
+            let newRate = Number(document.getElementById("winRateInput").value);
+            if (isNaN(newRate) || newRate < 0 || newRate > 100) {
+                alert("Vui lòng nhập tỉ lệ từ 0 đến 100!");
                 return;
             }
-            prizes.splice(index, 1);
-            renderPrizeInputs();
+            winRate = newRate;
+            localStorage.setItem('mahjong_win_rate', winRate);
+            alert("Đã cập nhật tỉ lệ thắng thành công!");
         }
 
-        function savePrizes() {
-            const nameInputs = document.querySelectorAll(".prize-name");
-            const weightInputs = document.querySelectorAll(".prize-weight");
-            const colorInputs = document.querySelectorAll(".prize-color");
-            
-            let newPrizes = [];
-            for (let i = 0; i < nameInputs.length; i++) {
-                newPrizes.push({
-                    text: nameInputs[i].value || "Ô trống",
-                    weight: Number(weightInputs[i].value) || 1,
-                    color: colorInputs[i].value
-                });
-            }
+    function renderAdminUserList() {
+        const container = document.getElementById("userListContainer");
+        container.innerHTML = "";
 
-            prizes = newPrizes;
-            localStorage.setItem('wheel_prizes_weighted', JSON.stringify(prizes));
-            drawWheel();
-            closeModal('adminPanelModal');
-            alert("Đã lưu cấu hình và tỉ lệ thành công!");
+        if (accounts.length === 0) {
+            container.innerHTML = `<p class="text-xs text-slate-500 text-center">Chưa có người chơi nào đăng nhập.</p>`;
+            return;
         }
 
-        // Khởi chạy vẽ vòng quay lần đầu
-        drawWheel();
-    </script>
+        accounts.forEach((acc, index) => {
+            container.innerHTML += `
+                <div class="flex justify-between items-center bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <div>
+                        <p class="text-sm font-bold text-white">${acc.username}</p>
+                        <p class="text-xs text-amber-400">Số dư: ${acc.balance} điểm</p>
+                    </div>
+                    <div class="flex space-x-1.5">
+                        <button onclick="adminAddBalance(${index}, 50)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2 py-1 rounded font-bold">+50đ</button>
+                        <button onclick="adminAddBalance(${index}, 200)" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded font-bold">+200đ</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function adminAddBalance(index, amount) {
+        accounts[index].balance += amount;
+        saveAccounts();
+        renderAdminUserList();
+        if (currentUser === accounts[index].username) {
+            updateBalanceDisplay();
+        }
+    }
+
+    initApp();
+</script>
 </body>
-  </html>
-  
+</html>
