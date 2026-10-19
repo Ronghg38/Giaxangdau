@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng Giá Xăng Dầu Trực Tuyến</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+        .container { max-width: 650px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h2 { color: #1a73e8; text-align: center; margin-bottom: 5px; }
+        .update-time { text-align: center; color: #666; font-size: 14px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #1a73e8; color: white; }
+        tr:hover { background-color: #f9f9f9; }
+        .price-val { color: #d93838; font-weight: bold; }
+        .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>⛽ Bảng Giá Xăng Dầu Petrolimex</h2>
+    <div class="update-time" id="update-time">Đang tải thời gian cập nhật...</div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Mặt hàng</th>
+                <th>Giá bán lẻ (Vùng 1)</th>
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            <tr><td colspan="2" style="text-align: center;">Đang đồng bộ dữ liệu...</td></tr>
+        </tbody>
+    </table>
+    
+    <div class="footer">Hệ thống tự động cập nhật Real-time qua Python & GitHub Pages</div>
+</div>
+
+<script>
+    async function loadPrices() {
+        try {
+            let response = await fetch('prices.json?t=' + new Date().getTime());
+            if (!response.ok) throw new Error("Không thể tải dữ liệu");
+            let data = await response.json();
+            
+            document.getElementById('update-time').innerText = "Cập nhật lần cuối: " + data.update_time;
+            
+            let tbody = document.getElementById('table-body');
+            tbody.innerHTML = "";
+            
+            for (let [product, price] of Object.entries(data.prices)) {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${product}</strong></td>
+                    <td><span class="price-val">${price}</span></td>
+                `;
+                tbody.appendChild(tr);
+            }
+        } catch (error) {
+            document.getElementById('table-body').innerHTML = `<tr><td colspan="2" style="text-align: center; color: red;">Chưa có dữ liệu hoặc đang chờ GitHub Actions chạy lần đầu.</td></tr>`;
+        }
+    }
+
+    loadPrices();
+</script>
+
+</body>
+</html>
